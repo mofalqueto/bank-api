@@ -219,6 +219,70 @@ app.get('/contatos/:id', async (req, res) => {
   }
 });
 
+app.put('/contatos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nome, numeroConta } = req.body;
+
+    const resultado = await pool.query(
+      `update contatos
+       set nome = $1,
+           numero_conta = $2
+       where id = $3
+       returning id, nome, numero_conta`,
+      [nome.trim(), numeroConta, id]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        erro: 'Contato não encontrado'
+      });
+    }
+
+    res.json({
+      mensagem: 'Contato atualizado com sucesso',
+      contato: resultado.rows[0]
+    });
+
+  } catch (erro) {
+    console.error('Erro ao atualizar contato:', erro);
+
+    res.status(500).json({
+      erro: 'Erro interno do servidor'
+    });
+  }
+});
+
+app.delete('/contatos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const resultado = await pool.query(
+      `delete from contatos
+       where id = $1
+       returning id`,
+      [id]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        erro: 'Contato não encontrado'
+      });
+    }
+
+    res.json({
+      mensagem: 'Contato excluído com sucesso'
+    });
+
+  } catch (erro) {
+    console.error('Erro ao excluir contato:', erro);
+
+    res.status(500).json({
+      erro: 'Erro interno do servidor'
+    });
+  }
+});
+
 const porta = process.env.PORT || 3000;
 
 app.listen(porta, () => {
