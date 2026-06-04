@@ -24,7 +24,9 @@ app.get('/', (req, res) => {
       'POST /transferencias',
       'GET /contatos',
       'POST /contatos',
-      'GET /contatos/:id'
+      'GET /contatos/:id',
+      'PUT /contatos/:id',
+      'DELETE /contatos/:id'
     ]
   });
 });
