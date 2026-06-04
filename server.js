@@ -17,16 +17,27 @@ const pool = new Pool({
 
 app.get('/', (req, res) => {
   res.json({
-    mensagem: 'Api bank funcionando...',
+    mensagem: 'Api bank + controle de gastos funcionando...',
     rotas: [
       'GET /teste-banco',
+
+      'GET /criar-tabela-transferencias',
       'GET /transferencias',
       'POST /transferencias',
+
+      'GET /criar-tabela-contatos',
       'GET /contatos',
       'POST /contatos',
       'GET /contatos/:id',
       'PUT /contatos/:id',
-      'DELETE /contatos/:id'
+      'DELETE /contatos/:id',
+
+      'GET /criar-tabela-gastos',
+      'GET /gastos',
+      'POST /gastos',
+      'GET /gastos/:id',
+      'PUT /gastos/:id',
+      'DELETE /gastos/:id'
     ]
   });
 });
@@ -47,6 +58,10 @@ app.get("/teste-banco", async (req, res) => {
     });
   }
 });
+
+// ==============================
+// ROTAS DE TRANSFERÊNCIAS
+// ==============================
 
 app.get("/criar-tabela-transferencias", async (req, res) => {
   try {
@@ -122,6 +137,10 @@ app.post('/transferencias', async (req, res) => {
   }
 });
 
+// ==============================
+// ROTAS DE CONTATOS
+// ==============================
+
 app.get('/criar-tabela-contatos', async (req, res) => {
   try {
     await pool.query(`
@@ -164,23 +183,23 @@ app.post('/contatos', async (req, res) => {
   try {
     const { nome, numeroConta } = req.body;
 
-if (!nome || nome.trim() === '') {
-  return res.status(400).json({
-    erro: 'nome é obrigatório'
-  });
-}
+    if (!nome || nome.trim() === '') {
+      return res.status(400).json({
+        erro: 'nome é obrigatório'
+      });
+    }
 
-if (!numeroConta || numeroConta <= 0) {
-  return res.status(400).json({
-    erro: 'numeroConta deve ser maior que zero'
-  });
-}
+    if (!numeroConta || numeroConta <= 0) {
+      return res.status(400).json({
+        erro: 'numeroConta deve ser maior que zero'
+      });
+    }
 
     const resultado = await pool.query(
       `insert into contatos (nome, numero_conta)
        values ($1, $2)
        returning id, nome, numero_conta`,
-     [nome.trim(), numeroConta] 
+      [nome.trim(), numeroConta]
     );
 
     res.status(201).json({
@@ -245,7 +264,6 @@ app.put('/contatos/:id', async (req, res) => {
       mensagem: 'Contato atualizado com sucesso',
       contato: resultado.rows[0]
     });
-
   } catch (erro) {
     console.error('Erro ao atualizar contato:', erro);
 
@@ -275,9 +293,185 @@ app.delete('/contatos/:id', async (req, res) => {
     res.json({
       mensagem: 'Contato excluído com sucesso'
     });
-
   } catch (erro) {
     console.error('Erro ao excluir contato:', erro);
+
+    res.status(500).json({
+      erro: 'Erro interno do servidor'
+    });
+  }
+});
+
+// ==============================
+// ROTAS DE GASTOS
+// ==============================
+
+app.get("/criar-tabela-gastos", async (req, res) => {
+  try {
+    await pool.query(`
+      create table if not exists gastos (
+        id serial primary key,
+        nome_gasto varchar(100) not null,
+        valor numeric(10,2) not null
+      )
+    `);
+
+    res.json({
+      mensagem: "Tabela gastos criada com sucesso",
+    });
+  } catch (erro) {
+    console.error("Erro ao criar tabela gastos:", erro);
+
+    res.status(500).json({
+      erro: "Erro ao criar tabela gastos",
+    });
+  }
+});
+
+app.get("/gastos", async (req, res) => {
+  try {
+    const resultado = await pool.query(
+      "select id, nome_gasto, valor from gastos order by id desc",
+    );
+
+    res.json(resultado.rows);
+  } catch (erro) {
+    console.error("Erro ao buscar gastos:", erro);
+
+    res.status(500).json({
+      erro: "Erro interno do servidor...",
+    });
+  }
+});
+
+app.post('/gastos', async (req, res) => {
+  try {
+    const { nomeGasto, valor } = req.body;
+
+    if (!nomeGasto || nomeGasto.trim() === '') {
+      return res.status(400).json({
+        erro: 'nomeGasto é obrigatório'
+      });
+    }
+
+    if (!valor || valor <= 0) {
+      return res.status(400).json({
+        erro: 'valor deve ser maior que zero'
+      });
+    }
+
+    const resultado = await pool.query(
+      `insert into gastos (nome_gasto, valor)
+       values ($1, $2)
+       returning id, nome_gasto, valor`,
+      [nomeGasto.trim(), valor]
+    );
+
+    res.status(201).json({
+      mensagem: 'Gasto cadastrado com sucesso',
+      gasto: resultado.rows[0]
+    });
+  } catch (erro) {
+    console.error('Erro ao cadastrar gasto:', erro);
+
+    res.status(500).json({
+      erro: 'Erro interno do servidor...'
+    });
+  }
+});
+
+app.get('/gastos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const resultado = await pool.query(
+      'select id, nome_gasto, valor from gastos where id = $1',
+      [id]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        erro: 'Gasto não encontrado'
+      });
+    }
+
+    res.json(resultado.rows[0]);
+  } catch (erro) {
+    console.error('Erro ao buscar gasto por id:', erro);
+
+    res.status(500).json({
+      erro: 'Erro interno do servidor...'
+    });
+  }
+});
+
+app.put('/gastos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nomeGasto, valor } = req.body;
+
+    if (!nomeGasto || nomeGasto.trim() === '') {
+      return res.status(400).json({
+        erro: 'nomeGasto é obrigatório'
+      });
+    }
+
+    if (!valor || valor <= 0) {
+      return res.status(400).json({
+        erro: 'valor deve ser maior que zero'
+      });
+    }
+
+    const resultado = await pool.query(
+      `update gastos
+       set nome_gasto = $1,
+           valor = $2
+       where id = $3
+       returning id, nome_gasto, valor`,
+      [nomeGasto.trim(), valor, id]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        erro: 'Gasto não encontrado'
+      });
+    }
+
+    res.json({
+      mensagem: 'Gasto atualizado com sucesso',
+      gasto: resultado.rows[0]
+    });
+  } catch (erro) {
+    console.error('Erro ao atualizar gasto:', erro);
+
+    res.status(500).json({
+      erro: 'Erro interno do servidor'
+    });
+  }
+});
+
+app.delete('/gastos/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const resultado = await pool.query(
+      `delete from gastos
+       where id = $1
+       returning id`,
+      [id]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({
+        erro: 'Gasto não encontrado'
+      });
+    }
+
+    res.json({
+      mensagem: 'Gasto excluído com sucesso'
+    });
+  } catch (erro) {
+    console.error('Erro ao excluir gasto:', erro);
 
     res.status(500).json({
       erro: 'Erro interno do servidor'
